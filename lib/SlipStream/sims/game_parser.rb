@@ -1,33 +1,22 @@
-require 'nokogiri'
-require 'open-uri'
+require 'SlipStream/sims/sths_page'
 
 module Sims
-  class GameParser
+  class GameParser < SthsPage
     SAMPLE_URL = "http://simulationhockey.com/games/smjhl/S44/Preseason/SMJHL-PRE-17.html"
     SLIP = "Slip McScruff"
 
     PLAY_BY_PLAY_CLASS = "STHSGame_PlayByPlayPeriod"
 
-    def initialize(game_url)
-      @doc = Nokogiri::HTML(open(game_url))
+    def get_game_title
+      title_node = safe_get_title_node(@head_node)
+      title_node.text
     end
-
-    def get_player_pbp(player_name)
-      search_pbp(player_name)
-    end
-
-    def get_slip_pbp
-      get_player_pbp(SLIP)
-    end
-
-    private
 
     # @return [Hash<String, Array<String>] Hash from Period to the relevant plays from that period.
     #   Sample Key: "1st period"
     #   Sample Play: "\n0:01 of 1st period - Steven Moyer wins face-off versus Xena in neutral zone. "
     def search_pbp(search_pattern)
-      body_node = safe_get_body_node
-      pbp_starts = safe_get_pbp_starts(body_node)
+      pbp_starts = safe_get_pbp_start_nodes(@body_node)
       pbp_hash = Hash.new
       pbp_starts.each do |pbp_start_node|
         relevant_plays = process_pbp_period(pbp_start_node, search_pattern)
@@ -36,16 +25,23 @@ module Sims
       pbp_hash
     end
 
-    def safe_get_body_node
-      body_node = @doc.root.children.find{ |node| node.name == "body" }
-      return body_node unless body_node.nil?
-      raise ArgumentError, "Could not find Body Node in Game Document"
+    # Convenience method to get the PBP for the best player in the league
+    def get_slip_pbp
+      search_pbp(SLIP)
     end
 
-    def safe_get_pbp_starts(body_node)
+    private
+
+    def safe_get_pbp_start_nodes(body_node)
       pbp_starts = body_node.children.find_all{ |node| get_node_class(node) == PLAY_BY_PLAY_CLASS }
       return pbp_starts unless pbp_starts.empty?
       raise ArgumentError, "Could not find Play by Play Starts in Game Document"
+    end
+
+    def safe_get_title_node(head_node)
+      title_node = head_node.children.find{ |node| node.name == "title" }
+      return title_node unless title_node.nil?
+      raise ArgumentError, "Could not find Title in Game Document Head"
     end
 
     def process_pbp_period(pbp_start_node, search_pattern)
