@@ -5,7 +5,8 @@ module Sims
     SAMPLE_URL = "http://simulationhockey.com/games/smjhl/S44/Preseason/SMJHL-PRE-17.html"
     SLIP = "Slip McScruff"
 
-    PLAY_BY_PLAY_CLASS = "STHSGame_PlayByPlayPeriod"
+    PLAY_BY_PLAY_PERIOD_CLASS = "STHSGame_PlayByPlayPeriod"
+    PLAY_BY_PLAY_OVERTIME_CLASS = "STHSGame_PlayByPlayOvertime"
 
     def get_game_title
       title_node = safe_get_title_node(@head_node)
@@ -33,7 +34,9 @@ module Sims
     private
 
     def safe_get_pbp_start_nodes(body_node)
-      pbp_starts = body_node.children.find_all{ |node| get_node_class(node) == PLAY_BY_PLAY_CLASS }
+      pbp_starts = body_node.children.find_all do |node| 
+        [PLAY_BY_PLAY_PERIOD_CLASS, PLAY_BY_PLAY_OVERTIME_CLASS].include? get_node_class(node)
+      end
       return pbp_starts unless pbp_starts.empty?
       raise ArgumentError, "Could not find Play by Play Starts in Game Document"
     end
